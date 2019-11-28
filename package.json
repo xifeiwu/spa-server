@@ -9,6 +9,7 @@
   "author": "xifei.wu",
   "license": "ISC",
   "dependencies": {
+    "compressible": "^2.0.17",
     "connect-history-api-fallback": "^1.6.0",
     "koa": "2.4.1",
     "koa-cors": "^0.0.16",
