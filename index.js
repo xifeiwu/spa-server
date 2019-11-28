@@ -7,10 +7,10 @@ const PathMatch = require('path-match');
 const staticCache = require('koa-static-cache');
 const httpProxy = require('http-proxy');
 
-const createDebug = require('debug');
+const loggerFactory = require('logger-factory');
 
-const debug = createDebug('spa-server');
-const debugProxy = createDebug('spa-server:proxy');
+const debug = loggerFactory('spa-server');
+const debugProxy = loggerFactory('spa-server:proxy');
 
 var proxy = httpProxy.createServer();
 
@@ -19,49 +19,13 @@ class SpaServer {
   }
 
   setDebug(config) {
-    var logDir = config.logDir;
-    if (process.env.LOG_DIR) {
-      logDir = process.env.LOG_DIR;
-    }
-    createDebug.getState().setConfigs({
-      debug: 'spa-server*',
-      useColors: logDir ? false : true,
-      toFile: logDir ? path.resolve(logDir, 'spa-server') : null
+    loggerFactory.getState().setConfigs({
+      debug: config.DEBUG ? config.DEBUG : '*',
+      useColors: config.useColor,
+      toFile: config.LOG_DIR ? path.resolve(config.LOG_DIR, 'spa-server') : null,
+      maxSize: 1024 * 1024 * 1024 * 8,
+      maxCount: 60,
     });
-    if (!logDir || !fs.existsSync(logDir) || !fs.statSync(logDir).isDirectory()) {
-      return;
-    }
-    try {
-      const reg = /^spa-server.(\d{4}-\d{2}-\d{2}).log$/;
-      const filePathList = fs.readdirSync(logDir).filter(it => reg.test(it)).sort((pre, next) => {
-        const preStamp = reg.exec(pre)[1].split('-').join();
-        const nextStamp = reg.exec(next)[1].split('-').join();
-        return pre - next;
-      }).map(it => path.resolve(logDir, it));
-      if (filePathList.length === 0) {
-        return;
-      }
-
-      var fileStatList = filePathList.map(it => fs.statSync(it));
-      var totalSize = fileStatList.reduce((sum, it) => {
-        sum += it.size;
-        return sum;
-      }, 0);
-      while ((totalSize > config.maxLogSize) && filePathList.length > 1) {
-        let filePath = filePathList.shift();
-        let stat = fileStatList.shift();
-        fs.unlinkSync(filePath)
-        totalSize = fileStatList.reduce((sum, it) => {
-          sum += it.size;
-          return sum;
-        }, 0);
-      }
-      // console.log(filePathList);
-      // console.log(fileStatList);
-      // console.log(totalSize);
-    } catch (err) {
-      debug(err);
-    }
   }
 
   // 跨域配置
