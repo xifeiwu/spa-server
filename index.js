@@ -3,6 +3,9 @@ const path = require('path');
 const http = require('http');
 const Koa = require('koa');
 const cors = require('koa-cors');
+const aes = require('crypto-js/aes');
+const cryptoEncBase64 = require('crypto-js/enc-base64');
+const cryptoEncUtf8 = require('crypto-js/enc-utf8');
 const PathMatch = require('path-match');
 const staticCache = require('koa-static-cache');
 const httpProxy = require('http-proxy');
@@ -51,11 +54,12 @@ class SpaServer {
         // log(print, ctx, start, counter ? counter.length : length, null, event)
       }
 
+      // await next();
       try {
         await next();
       } catch (err) {
-        // console.log(err);
         debug(err);
+        throw err;
       }
     });
   }
@@ -102,6 +106,36 @@ class SpaServer {
       }
 
       let start = Date.now();
+
+      var authOK = true;
+      const reqHeaders = ctx.req.headers;
+      var decrypted = '';
+      if (reqHeaders.hasOwnProperty('auth') && reqHeaders.hasOwnProperty('token')) {
+        decrypted = aes.decrypt(reqHeaders['auth'], 'paas').toString(cryptoEncUtf8);
+        if (!decrypted) {
+          authOK = false;
+        } else {
+          decrypted = JSON.parse(decrypted);
+          if (decrypted['token'] != reqHeaders['token']) {
+            authOK = false
+          }
+        }
+      } else if (reqHeaders.hasOwnProperty('auth') || reqHeaders.hasOwnProperty('token')) {
+        authOK = false;
+      }
+      if (!authOK) {
+        debugProxy(ctx.req.url);
+        debugProxy(reqHeaders);
+        debugProxy(decrypted);
+        // ctx.assert(false, 200, JSON.stringify({
+        //   success: false,
+        //   code: 1,
+        //   msg: 'proxy: 认证失败',
+        //   content: '',
+        //   t: new Date().getTime()
+        // }));
+      }
+
       return new Promise((resolve, reject) => {
         ctx.req.oldPath = ctx.req.url;
 
@@ -126,7 +160,7 @@ class SpaServer {
         });
         proxy.once('end', () => {
           let duration = Date.now() - start;
-          debugProxy(ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
+          debugProxy(decrypted && decrypted.hasOwnProperty('userName') ? `(${decrypted['userName']})` : '', ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
           ctx.respond = false;
           resolve();
         })
