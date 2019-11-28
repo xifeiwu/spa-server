@@ -18,14 +18,8 @@ class SpaServer {
   constructor() {
   }
 
-  setDebug(config) {
-    loggerFactory.getState().setConfigs({
-      debug: config.DEBUG ? config.DEBUG : '*',
-      useColors: config.useColor,
-      toFile: config.LOG_DIR ? path.resolve(config.LOG_DIR, 'spa-server') : null,
-      maxSize: 1024 * 1024 * 1024 * 8,
-      maxCount: 60,
-    });
+  setDebug(loggerConfig) {
+    loggerFactory.getState().setConfigs(loggerConfig);
   }
 
   // 跨域配置
@@ -192,9 +186,16 @@ class SpaServer {
     config = Object.assign({
       port: 6001,
       healthCheck: true,
-      maxLogSize: 1024 * 1024 * 1024
     }, config);
-    this.setDebug(config);
+    config.logger = {
+      debug: config.DEBUG ? config.DEBUG : '*',
+      useColors: config.useColor,
+      toFile: config.LOG_DIR ? path.resolve(config.LOG_DIR, 'spa-server') : null,
+      maxSize: 1024 * 1024 * 1024 * 8,
+      maxCount: 60,
+    };
+    this.setDebug(config.logger);
+    // debug should call after loggerFactory is set
     debug(config);
 
     const app = new Koa();
