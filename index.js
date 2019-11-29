@@ -39,17 +39,17 @@ class SpaServer {
       const start = Date.now();
       // debug('<--', ctx.method, ctx.url);
 
-      const res = ctx.res
+      const res = ctx.res;
 
-      const onfinish = done.bind(null, 'finish')
-      const onclose = done.bind(null, 'close')
+      const onfinish = done.bind(null, 'finish');
+      const onclose = done.bind(null, 'close');
 
       res.once('finish', onfinish)
       res.once('close', onclose)
 
       function done (event) {
-        res.removeListener('finish', onfinish)
-        res.removeListener('close', onclose)
+        res.removeListener('finish', onfinish);
+        res.removeListener('close', onclose);
         debug('-->', ctx.method, ctx.url, ctx.status, `[${Date.now() - start}ms]`)
         // log(print, ctx, start, counter ? counter.length : length, null, event)
       }
@@ -107,34 +107,38 @@ class SpaServer {
 
       let start = Date.now();
 
-      var authOK = true;
-      const reqHeaders = ctx.req.headers;
-      var decrypted = '';
-      if (reqHeaders.hasOwnProperty('auth') && reqHeaders.hasOwnProperty('token')) {
-        decrypted = aes.decrypt(reqHeaders['auth'], 'paas').toString(cryptoEncUtf8);
-        if (!decrypted) {
-          authOK = false;
-        } else {
-          decrypted = JSON.parse(decrypted);
-          if (decrypted['token'] != reqHeaders['token']) {
-            authOK = false
+      const [realName, userName, token] = [];
+      try {
+        var authOK = true;
+        const reqHeaders = ctx.req.headers;
+        var decrypted = '';
+        if (reqHeaders.hasOwnProperty('auth') && reqHeaders.hasOwnProperty('token')) {
+          decrypted = aes.decrypt(reqHeaders['auth'], 'paas').toString(cryptoEncUtf8);
+          if (!decrypted) {
+            authOK = false;
+          } else {
+            [realName, userName, token] = decrypted.split(':');
+            // decrypted = JSON.parse(decrypted);
+            if ('token' != reqHeaders['token']) {
+              authOK = false
+            }
           }
+        } else if (reqHeaders.hasOwnProperty('auth') || reqHeaders.hasOwnProperty('token')) {
+          authOK = false;
         }
-      } else if (reqHeaders.hasOwnProperty('auth') || reqHeaders.hasOwnProperty('token')) {
-        authOK = false;
-      }
-      if (!authOK) {
-        debugProxy(ctx.req.url);
-        debugProxy(reqHeaders);
-        debugProxy(decrypted);
-        // ctx.assert(false, 200, JSON.stringify({
-        //   success: false,
-        //   code: 1,
-        //   msg: 'proxy: 认证失败',
-        //   content: '',
-        //   t: new Date().getTime()
-        // }));
-      }
+        if (!authOK) {
+          debugProxy(ctx.req.url);
+          debugProxy(reqHeaders);
+          debugProxy(decrypted);
+          // ctx.assert(false, 200, JSON.stringify({
+          //   success: false,
+          //   code: 1,
+          //   msg: 'proxy: 认证失败',
+          //   content: '',
+          //   t: new Date().getTime()
+          // }));
+        }
+      } catch (err) {}
 
       return new Promise((resolve, reject) => {
         ctx.req.oldPath = ctx.req.url;
@@ -160,7 +164,7 @@ class SpaServer {
         });
         proxy.once('end', () => {
           let duration = Date.now() - start;
-          debugProxy(decrypted && decrypted.hasOwnProperty('userName') ? `(${decrypted['userName']})` : '', ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
+          debugProxy(realName ? `(realName)` : '', ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
           ctx.respond = false;
           resolve();
         })
@@ -217,17 +221,6 @@ class SpaServer {
   }
 
   start(config) {
-    config = Object.assign({
-      port: 6001,
-      healthCheck: true,
-    }, config);
-    config.logger = {
-      debug: config.DEBUG ? config.DEBUG : '*',
-      useColors: config.useColor,
-      toFile: config.LOG_DIR ? path.resolve(config.LOG_DIR, 'spa-server') : null,
-      maxSize: 1024 * 1024 * 1024 * 8,
-      maxCount: 60,
-    };
     this.setDebug(config.logger);
     // debug should call after loggerFactory is set
     debug(config);
