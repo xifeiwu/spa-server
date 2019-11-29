@@ -164,7 +164,7 @@ class SpaServer {
         });
         proxy.once('end', () => {
           let duration = Date.now() - start;
-          debugProxy(realName ? `(realName)` : '', ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
+          debugProxy(realName ? `(${realName})` : '', ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
           ctx.respond = false;
           resolve();
         })
