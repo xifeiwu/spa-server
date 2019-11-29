@@ -107,7 +107,7 @@ class SpaServer {
 
       let start = Date.now();
 
-      const [realName, userName, token] = [];
+      var [realName, userName, token] = [];
       try {
         var authOK = true;
         const reqHeaders = ctx.req.headers;
@@ -119,7 +119,7 @@ class SpaServer {
           } else {
             [realName, userName, token] = decrypted.split(':');
             // decrypted = JSON.parse(decrypted);
-            if ('token' != reqHeaders['token']) {
+            if (token != reqHeaders['token']) {
               authOK = false
             }
           }
@@ -138,7 +138,9 @@ class SpaServer {
           //   t: new Date().getTime()
           // }));
         }
-      } catch (err) {}
+      } catch (err) {
+        console.log(err);
+      }
 
       return new Promise((resolve, reject) => {
         ctx.req.oldPath = ctx.req.url;
