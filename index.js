@@ -201,21 +201,31 @@ class SpaServer {
     if (!config.staticPath) {
       return;
     }
-    const addStatic = (dir) => {
-      if (!fs.existsSync(dir)) {
-        return;
-      }
-      app.use(staticCache(dir, {
+    const addStatic = (dirOrOptions) => {
+      const defaultOptions = {
         gzip: true,
         preload: true,
         buffer: false,
         dynamic: true,
         filter: function(filePath) {
           return !/^node_modules\/.*$/.test(filePath);
-        },
-      }));
+        }
+      };
+
+      var options = {};
+      if (dirOrOptions !== null && typeof dirOrOptions === 'object') {
+        options = object.assign(defaultOptions, dirOrOptions);
+      } else {
+        options = object.assign(defaultOptions, {
+          dir: dirOrOptions
+        });
+      }
+      if (!fs.existsSync(dir)) {
+        return;
+      }
+      app.use(staticCache(options));
     };
-    if (Array.isArray(config)) {
+    if (Array.isArray(config.staticPath)) {
       config.staticPath.forEach(addStatic);
     } else {
       addStatic(config.staticPath);
