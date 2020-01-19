@@ -214,14 +214,14 @@ class SpaServer {
 
       var options = {};
       if (dirOrOptions !== null && typeof dirOrOptions === 'object') {
-        options = object.assign(defaultOptions, dirOrOptions);
+        options = Object.assign(defaultOptions, dirOrOptions);
       } else {
-        options = object.assign(defaultOptions, {
+        options = Object.assign(defaultOptions, {
           dir: dirOrOptions
         });
       }
-      if (!fs.existsSync(dir)) {
-        return;
+      if (!fs.existsSync(options.dir)) {
+        throw new Error(`dir ${options.dir} not exist`);
       }
       app.use(staticCache(options));
     };
