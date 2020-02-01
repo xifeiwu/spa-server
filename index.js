@@ -161,7 +161,7 @@ class SpaServer {
         });
         proxy.once('end', () => {
           let duration = Date.now() - start;
-          debugProxy(realName ? `(${realName})` : '', ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
+          debugProxy(ctx.req.method, ctx.req.oldPath, 'to', target + ctx.req.url, `[${duration}ms]`);
           ctx.respond = false;
           resolve();
         })
@@ -193,43 +193,56 @@ class SpaServer {
 
   // 配置静态服务
   setStatic(app, config) {
-    if (!config.staticConfig) {
+    if (!Array.isArray(config.staticConfig)) {
       return;
     }
-    const addStatic = (dirOrOptions) => {
-      const defaultOptions = {
-        gzip: true,
-        preload: true,
-        buffer: false,
-        dynamic: true,
-        filter: function(filePath) {
-          return !/^node_modules\/.*$/.test(filePath);
-        }
-      };
-
-      var options = {};
-      if (dirOrOptions !== null && typeof dirOrOptions === 'object') {
-        options = Object.assign(defaultOptions, dirOrOptions);
-      } else {
-        options = Object.assign(defaultOptions, {
-          dir: dirOrOptions
-        });
-      }
-      if (!fs.existsSync(options.dir)) {
-        debug(`WARNING: dir ${options.dir} not exist`);
-        return;
-      }
+    config.staticConfig.forEach(options => {
       app.use(staticCache(options));
-    };
-    if (Array.isArray(config.staticConfig)) {
-      config.staticConfig.forEach(addStatic);
-    } else {
-      addStatic(config.staticConfig);
-    }
+    });
+  }
+
+  /**
+   * format config for sap-server
+   */
+  formatConfig(config) {
+    config.staticConfig = (function formatStaticConfig(staticConfig) {
+      if (!Array.isArray(staticConfig)) {
+        staticConfig = [staticConfig];
+      }
+      return staticConfig.map(dirOrOptions => {
+        const defaultOptions = {
+          gzip: true,
+          preload: true,
+          buffer: false,
+          dynamic: true,
+          filter: function(filePath) {
+            return !/^node_modules\/.*$/.test(filePath);
+          }
+        };
+
+        var options = {};
+        if (dirOrOptions !== null && typeof dirOrOptions === 'object') {
+          options = Object.assign(defaultOptions, dirOrOptions);
+        } else {
+          options = Object.assign(defaultOptions, {
+            dir: dirOrOptions
+          });
+        }
+        return options;
+      }).filter(options => {
+        const isDirExist = fs.existsSync(options.dir);
+        if (!isDirExist) {
+          debug(`WARNING: dir ${options.dir} not exist`);
+        }
+        return isDirExist;
+
+      });
+    })(config.staticConfig);
   }
 
   start(config) {
     this.setDebug(config.logger);
+    this.formatConfig(config);
     // debug should call after loggerFactory is set
     debug(config);
 
