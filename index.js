@@ -198,7 +198,7 @@ class SpaServer {
 
   // 配置静态服务
   setStatic(app, config) {
-    if (!config.staticPath) {
+    if (!config.staticConfig) {
       return;
     }
     const addStatic = (dirOrOptions) => {
@@ -221,14 +221,15 @@ class SpaServer {
         });
       }
       if (!fs.existsSync(options.dir)) {
-        throw new Error(`dir ${options.dir} not exist`);
+        debug(`WARNING: dir ${options.dir} not exist`);
+        return;
       }
       app.use(staticCache(options));
     };
-    if (Array.isArray(config.staticPath)) {
-      config.staticPath.forEach(addStatic);
+    if (Array.isArray(config.staticConfig)) {
+      config.staticConfig.forEach(addStatic);
     } else {
-      addStatic(config.staticPath);
+      addStatic(config.staticConfig);
     }
   }
 
@@ -242,12 +243,13 @@ class SpaServer {
     this.setLogger(app, config);
     this.setHealthCheck(app, config);
     this.setProxy(app, config);
+    // NOTICE: the sequence of koa middleware can not change
     this.setStatic(app, config);
     this.setRewrite(app, config);
     this.setStatic(app, config);
 
     app.listen(config.port);
-    debug('服务已启动', config.port);
+    debug(`服务已启动：http://${config.host}:${config.port}`);
   }
 }
 
