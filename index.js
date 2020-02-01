@@ -14,6 +14,7 @@ const loggerFactory = require('logger-factory');
 
 const debug = loggerFactory('spa-server');
 const debugProxy = loggerFactory('spa-server:proxy');
+const debugRewrite = loggerFactory('spa-server:rewrite');
 
 var proxy = httpProxy.createServer();
 
@@ -181,14 +182,39 @@ class SpaServer {
 
   // 路径重定向
   setRewrite(app, config) {
-    if (!config.historyApiFallback) {
-      return;
+    if (Array.isArray(config.redirect)) {
+      app.use((ctx, next) => {
+        const path = ctx.path;
+        const redirectConfig = config.redirect.find(it => {
+          const from = it.from;
+          if (from instanceof RegExp) {
+            return from.test(path);
+          } else if (typeof(from) === 'string' || it instanceof String) {
+            return from === path;
+          } else {
+            return false;
+          }
+        });
+        if (redirectConfig) {
+          ctx.status = 307;
+          ctx.type = 'text/plain; charset=utf-8';
+          ctx.set('Location', `${redirectConfig.to}`);
+          debugRewrite(`redirect: from ${ctx.url} to ${redirectConfig.to}`);
+        } else {
+          return next();
+        }
+      });
     }
-    const middleware = require('connect-history-api-fallback')(config.historyApiFallback);
-    app.use((ctx, next) => {
-      middleware(ctx, null, () => {});
-      return next();
-    });
+    if (config.historyApiFallback) {
+      const middleware = require('connect-history-api-fallback')(config.historyApiFallback);
+      app.use((ctx, next) => {
+        const originUrl = ctx.url;
+        middleware(ctx, null, () => {
+          debugRewrite(`api-fallback: from ${originUrl} to ${ctx.url}`);
+        });
+        return next();
+      });
+    }
   }
 
   // 配置静态服务
@@ -212,7 +238,7 @@ class SpaServer {
       return staticConfig.map(dirOrOptions => {
         const defaultOptions = {
           gzip: true,
-          preload: true,
+          preload: false,
           buffer: false,
           dynamic: true,
           filter: function(filePath) {
