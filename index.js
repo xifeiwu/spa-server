@@ -79,6 +79,36 @@ class SpaServer {
     });
   }
 
+  // simple auth check for proxy request
+  authCheck() {
+    var [realName, userName, token] = [];
+    try {
+      var authOK = true;
+      const reqHeaders = ctx.req.headers;
+      var decrypted = '';
+      if (reqHeaders.hasOwnProperty('auth') && reqHeaders.hasOwnProperty('token')) {
+        decrypted = aes.decrypt(reqHeaders['auth'], 'paas').toString(cryptoEncUtf8);
+        if (!decrypted) {
+          authOK = false;
+        } else {
+          [realName, userName, token] = decrypted.split(':');
+          // decrypted = JSON.parse(decrypted);
+          if (token != reqHeaders['token']) {
+            authOK = false
+          }
+        }
+      } else if (reqHeaders.hasOwnProperty('auth') || reqHeaders.hasOwnProperty('token')) {
+        authOK = false;
+      }
+      if (!authOK) {
+        debugProxy(ctx.req.url);
+        debugProxy(reqHeaders);
+        debugProxy(decrypted);
+      }
+    } catch (err) {
+      console.log(err);
+    }
+  }
   /**
    * Koa Http Proxy Middleware
    */
@@ -106,41 +136,6 @@ class SpaServer {
       }
 
       let start = Date.now();
-
-      var [realName, userName, token] = [];
-      try {
-        var authOK = true;
-        const reqHeaders = ctx.req.headers;
-        var decrypted = '';
-        if (reqHeaders.hasOwnProperty('auth') && reqHeaders.hasOwnProperty('token')) {
-          decrypted = aes.decrypt(reqHeaders['auth'], 'paas').toString(cryptoEncUtf8);
-          if (!decrypted) {
-            authOK = false;
-          } else {
-            [realName, userName, token] = decrypted.split(':');
-            // decrypted = JSON.parse(decrypted);
-            if (token != reqHeaders['token']) {
-              authOK = false
-            }
-          }
-        } else if (reqHeaders.hasOwnProperty('auth') || reqHeaders.hasOwnProperty('token')) {
-          authOK = false;
-        }
-        if (!authOK) {
-          debugProxy(ctx.req.url);
-          debugProxy(reqHeaders);
-          debugProxy(decrypted);
-          // ctx.assert(false, 200, JSON.stringify({
-          //   success: false,
-          //   code: 1,
-          //   msg: 'proxy: 认证失败',
-          //   content: '',
-          //   t: new Date().getTime()
-          // }));
-        }
-      } catch (err) {
-        console.log(err);
-      }
 
       return new Promise((resolve, reject) => {
         ctx.req.oldPath = ctx.req.url;
