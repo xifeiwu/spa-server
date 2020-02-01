@@ -223,7 +223,15 @@ class SpaServer {
       return;
     }
     config.staticConfig.forEach(options => {
-      app.use(staticCache(options));
+      app.use(staticCache({
+        dir: options.dir,
+        prefix: options.prefix,
+        gzip: options.gzip,
+        preload: options.preload,
+        buffer: options.buffer,
+        dynamic: options.dynamic,
+        filter: options.filter
+      }));
     });
   }
 
