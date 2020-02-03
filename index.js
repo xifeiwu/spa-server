@@ -51,7 +51,7 @@ class SpaServer {
       function done (event) {
         res.removeListener('finish', onfinish);
         res.removeListener('close', onclose);
-        debug('-->', ctx.method, ctx.url, ctx.status, `[${Date.now() - start}ms]`)
+        debug(`${ctx.socket.remoteAddress}:${ctx.socket.remotePort}`, ctx.method, ctx.url, ctx.status, `[${Date.now() - start}ms]`)
         // log(print, ctx, start, counter ? counter.length : length, null, event)
       }
 
